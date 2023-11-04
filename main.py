@@ -1,11 +1,12 @@
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
+from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
-from scipy import stats
 
 
 def split_data(df, test_size=0.2, random_state=42):
@@ -41,37 +42,51 @@ if __name__ == "__main__":
         ("Gradient Boosting", GradientBoostingRegressor(random_state=42))
     ]
 
-    # Evaluate each algorithm using cross-validation
-    CV_results = []
+    # Evaluate and train each algorithm
+    results = []
     for name, model in algorithms:
-        scores = cross_val_score(model, train_features, train_target, cv=5, scoring="neg_mean_squared_error")
-        CV_results.append((name, scores))
-    print(f"cross validation results= {CV_results}")
+        # Perform cross-validation
+        scores = -cross_val_score(model, train_features, train_target, scoring="neg_mean_squared_error", cv=5)
+        rmse_cv = np.sqrt(scores.mean())
 
-    # Perform paired t-test to determine the best algorithm
-    best_algs = ""
-    best_p_value = 1.0
+        # Train the model on the full training set
+        model.fit(train_features, train_target)
 
-    for i in range(len(CV_results)):
-        for j in range(i + 1, len(CV_results)):
-            _, scores1 = CV_results[i]
-            _, scores2 = CV_results[j]
-            _, p_value = stats.ttest_rel(scores1, scores2)
-            # print(stats.ttest_rel(scores1, scores2))
-            if p_value < best_p_value:
-                best_p_value = p_value
-                best_algs = CV_results[i][0] + " vs. " + CV_results[j][0]
+        # Predict on the test data
+        y_pred = model.predict(test_features)
+        rmse_test = np.sqrt(mean_squared_error(test_target, y_pred))
 
-    # Comparing mean squared errors using paired t-test to find the best algorithm:
-    print("The best algorithms are:", best_algs)
+        # Return evaluation results
+        results.append({
+            "model_name": name,
+            "rmse_cv": rmse_cv,
+            "rmse_test": rmse_test
+        })
 
-    # Train and evaluate the best algorithm on the test set
-    best_model = None
-    for name, model in algorithms:
-        if name in best_algs:
-            best_model = model
-            break
+    # Display evaluation results
+    for result in results:
+        print("Algorithm:", result["model_name"])
+        print("RMSE for 5-fold CV:", result["rmse_cv"])
+        print("RMSE for validation:", result["rmse_test"])
+        print()
 
-    best_model.fit(train_features, train_target)
-    mse = np.mean((best_model.predict(test_features) - test_target) ** 2)
-    print(f"Mean Squared Error for the Best Algorithm on Test Data: {mse}")
+    # Create a bar plot to visualize the RMSE results
+    model_names = [result["model_name"] for result in results]
+    rmse_cv_scores = [result["rmse_cv"] for result in results]
+    rmse_test_scores = [result["rmse_test"] for result in results]
+
+    bar_width = 0.35
+    index = np.arange(len(model_names))
+
+    plt.figure(figsize=(12, 6))
+    bar1 = plt.bar(index, rmse_cv_scores, bar_width, label='RMSE (5-fold CV)')
+    bar2 = plt.bar(index + bar_width, rmse_test_scores, bar_width, label='RMSE (validation)')
+
+    plt.xlabel('Models')
+    plt.ylabel('Root Mean Squared Error (RMSE)')
+    plt.title('RMSE Comparison of Different Models')
+    plt.xticks(index + bar_width / 2, model_names, rotation=45)
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
