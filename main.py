@@ -46,45 +46,45 @@ if __name__ == "__main__":
     results = []
     for name, model in algorithms:
         # Perform cross-validation
-        scores = -cross_val_score(model, train_features, train_target, scoring="neg_mean_squared_error", cv=5)
-        rmse_cv = np.sqrt(scores.mean())
+        scores = cross_val_score(model, train_features, train_target, scoring="neg_mean_squared_error", cv=5)
+        mse_cv = -scores.mean()
 
         # Train the model on the full training set
         model.fit(train_features, train_target)
 
         # Predict on the test data
         y_pred = model.predict(test_features)
-        rmse_test = np.sqrt(mean_squared_error(test_target, y_pred))
+        mse_test = mean_squared_error(test_target, y_pred)
 
         # Return evaluation results
         results.append({
             "model_name": name,
-            "rmse_cv": rmse_cv,
-            "rmse_test": rmse_test
+            "mse_cv": mse_cv,
+            "mse_test": mse_test
         })
 
     # Display evaluation results
     for result in results:
         print("Algorithm:", result["model_name"])
-        print("RMSE for 5-fold CV:", result["rmse_cv"])
-        print("RMSE for validation:", result["rmse_test"])
+        print("MSE for 5-fold CV:", result["mse_cv"])
+        print("MSE for validation:", result["mse_test"])
         print()
 
     # Create a bar plot to visualize the RMSE results
     model_names = [result["model_name"] for result in results]
-    rmse_cv_scores = [result["rmse_cv"] for result in results]
-    rmse_test_scores = [result["rmse_test"] for result in results]
+    mse_cv_scores = [result["mse_cv"] for result in results]
+    mse_test_scores = [result["mse_test"] for result in results]
 
     bar_width = 0.35
     index = np.arange(len(model_names))
 
     plt.figure(figsize=(12, 6))
-    bar1 = plt.bar(index, rmse_cv_scores, bar_width, label='RMSE (5-fold CV)')
-    bar2 = plt.bar(index + bar_width, rmse_test_scores, bar_width, label='RMSE (validation)')
+    bar1 = plt.bar(index, mse_cv_scores, bar_width, label='MSE (5-fold CV)')
+    bar2 = plt.bar(index + bar_width, mse_test_scores, bar_width, label='MSE (validation)')
 
     plt.xlabel('Models')
-    plt.ylabel('Root Mean Squared Error (RMSE)')
-    plt.title('RMSE Comparison of Different Models')
+    plt.ylabel('Mean Squared Error (MSE)')
+    plt.title('MSE Comparison of Different Models')
     plt.xticks(index + bar_width / 2, model_names, rotation=45)
     plt.legend()
 
